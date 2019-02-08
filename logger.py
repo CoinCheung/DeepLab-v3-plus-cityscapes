@@ -14,10 +14,8 @@ def setup_logger(logpth):
     logfile = 'Deeplab_v3plus-{}.log'.format(time.strftime('%Y-%m-%d-%H-%M-%S'))
     logfile = osp.join(logpth, logfile)
     FORMAT = '%(levelname)s %(filename)s(%(lineno)d): %(message)s'
-    if dist.get_rank()==0:
-        logging.basicConfig(level=logging.INFO, format=FORMAT, filename=logfile)
-    else:
-        logging.basicConfig(level=logging.ERROR, format=FORMAT, filename=logfile)
+    log_level = logging.INFO
+    if dist.is_initialized() and dist.get_rank()!=0:
+        log_level = logging.WARNING
+    logging.basicConfig(level=log_level, format=FORMAT, stream=sys.stdout)
     logging.root.addHandler(logging.StreamHandler())
-
-

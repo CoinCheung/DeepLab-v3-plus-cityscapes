@@ -31,4 +31,8 @@ If you want to evaluate a trained model, you can also do this:
 ```
     $ python evaluate.py
 ```
+or if you want to evaluate on multi-gpus, you can also do this: 
+```
+    $ CUDA_VISIBLE_DEVICES=0,1 python -m torch.distributed.launch --nproc_per_node=2 evaluate.py
+```
 
