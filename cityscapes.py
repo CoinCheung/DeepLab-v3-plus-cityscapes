@@ -101,46 +101,17 @@ class CityScapes(Dataset):
         return label
 
 
-def dl_collate_fn(batch):
-    imgs, label = [], []
-    for im, lb in batch:
-        imgs.append(im)
-        label.append(lb)
-    label = np.array(label)
-    ims_scale = []
-    n_scales = len(imgs[0])
-    for i in range(n_scales):
-        scales_tens = torch.stack([el[i] for el in imgs])
-        ims_scale.append(scales_tens)
-    return ims_scale, label
-
-
 if __name__ == "__main__":
     from tqdm import tqdm
     from torch.utils.data import DataLoader
     ds = CityScapes('./data/', mode='val')
-    #  ds = CityScapes('./data/', n_classes=19, mode='train')
-    #  im, label = ds[10]
-    #  _ = input()
     dl = DataLoader(ds,
                     batch_size = 4,
                     shuffle = True,
                     num_workers = 4,
-                    collate_fn = dl_collate_fn,
                     drop_last = True)
     for imgs, label in dl:
         print(len(imgs))
         for el in imgs:
             print(el.size())
-        #  print(imgs_flip[0].size())
         break
-    #  uni = []
-    #  for im, lb in tqdm(ds):
-    #      lb_uni = np.unique(lb).tolist()
-    #      uni.extend(lb_uni)
-    #      print(len(im))
-    #      for el in im:
-    #          print(el.size())
-    #      break
-    #  print(uni)
-    #  print(set(uni))

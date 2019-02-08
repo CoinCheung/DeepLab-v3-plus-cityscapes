@@ -8,8 +8,6 @@ import torch.nn as nn
 from modules import InPlaceABNSync as BatchNorm2d
 
 
-## TODO: initialize GN, first in the last stage should be initialized to 0, or so
-
 class ConvBNLeaky(nn.Module):
     def __init__(self,
             in_chan,
@@ -141,4 +139,3 @@ if __name__ == '__main__':
         loss = criteria(logits, lb)
         loss.backward()
         print(loss)
-

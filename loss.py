@@ -8,21 +8,6 @@ import torch.nn.functional as F
 
 import numpy as np
 
-    #  def forward(self, logits, labels):
-    #      N, C, H, W = logits.size()
-    #      n_pixs = N * H * W
-    #      logits_flatten = logits.permute(0, 2, 3, 1).contiguous().view(-1, C)
-    #      scores = F.softmax(logits_flatten, dim=1).cpu().data.numpy()
-    #      labels = labels.view(-1)
-    #      labels_cpu = labels.cpu().numpy()
-    #      labels_cpu[labels_cpu==self.ignore_lb] = 0
-    #      picks = scores[np.arange(n_pixs), labels_cpu]
-    #      picks[labels_cpu==self.ignore_lb] = 1
-    #      sorteds = np.sort(picks)
-    #      if sorteds[self.n_min] > self.thresh: self.thresh = sorteds[n_min]
-    #      labels[torch.from_numpy(picks)>self.thresh] = self.ignore_lb
-    #      loss = self.criteria(logits_flatten, labels)
-    #      return loss
 
 class OhemCELoss(nn.Module):
     def __init__(self, thresh, n_min, ignore_lb=255, *args, **kwargs):

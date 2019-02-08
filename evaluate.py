@@ -2,8 +2,8 @@
 # -*- encoding: utf-8 -*-
 
 from logger import *
-from deeplabv3plus import Deeplab_v3plus
-from cityscapes import CityScapes, dl_collate_fn
+from models.deeplabv3plus import Deeplab_v3plus
+from cityscapes import CityScapes
 
 import torch
 import torch.nn as nn
@@ -59,7 +59,10 @@ class MscEval(object):
     def __call__(self, net):
         ## evaluate
         hist = np.zeros((19, 19), dtype=np.float32)
-        for i, (imgs, label) in enumerate(tqdm(self.dl)):
+        diter = enumerate(tqdm(self.dl))
+        if dist.is_initialized() and dist.get_rank()!=0:
+            diter = enumerate(self.dl)
+        for i, (imgs, label) in diter:
             N, _, H, W = label.shape
             probs = torch.zeros((N, self.n_classes, H, W))
             probs.requires_grad = False
@@ -90,47 +93,12 @@ class MscEval(object):
         return mIOU
 
 
-def eval_model(net, lb_ignore=255):
-    ## dataloader
-    batchsize = 1
-    n_workers = 4
-    dsval = CityScapes('./data', mode='val')
-    dl = DataLoader(dsval,
-                    batch_size = batchsize,
-                    shuffle = False,
-                    num_workers = n_workers,
-                    drop_last = False)
-
-    ## evaluate
-    hist = np.zeros((19, 19), dtype=np.float32)
-    if not dist.is_initialized():
-        diter = enumerate(tqdm(dsval))
-    else:
-        diter = enumerate(tqdm(dsval)) if dist.get_rank()==0 else enumerate(dsval)
-    for i, (im, lb) in diter:
-        im = im.cuda().unsqueeze(0)
-        lb = np.squeeze(lb, 0)
-        H, W = lb.shape
-        with torch.no_grad():
-            logits = net(im)
-            probs = F.softmax(logits, 1).squeeze(0)
-        probs = probs.detach().cpu().numpy()
-        pred = np.argmax(probs, axis=0)
-
-        hist_once = compute_hist(pred, lb)
-        hist = hist + hist_once
-    IOUs = np.diag(hist) / (np.sum(hist, axis=0)+np.sum(hist, axis=1)-np.diag(hist))
-    mIOU = np.mean(IOUs)
-    return mIOU
-
-
 def evaluate():
     respth = './res'
     FORMAT = '%(levelname)s %(filename)s(%(lineno)d): %(message)s'
-    if not dist.is_initialized():
-        log_level = logging.INFO
-    else:
-        log_level = logging.INFO if dist.get_rank()==0 else logging.ERROR
+    log_level = logging.INFO
+    if dist.is_initialized() and dist.get_rank()!=0:
+        log_level = logging.ERROR
     logging.basicConfig(level=log_level, format=FORMAT, stream=sys.stdout)
     logger = logging.getLogger()
 
@@ -148,8 +116,6 @@ def evaluate():
     evaluator = MscEval()
     mIOU = evaluator(net)
     logger.info('mIOU is: {:.6f}'.format(mIOU))
-
-
 
 
 if __name__ == "__main__":

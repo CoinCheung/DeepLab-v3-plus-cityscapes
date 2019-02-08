@@ -2,13 +2,10 @@
 # -*- encoding: utf-8 -*-
 
 
-## 3. 如果训练之后直接做eval和保存模型，是否会在每个进程里面都做一次，导致保存了5次，然后每张卡上eval一次
-
-
 from logger import *
-from deeplabv3plus import Deeplab_v3plus
+from models.deeplabv3plus import Deeplab_v3plus
 from cityscapes import CityScapes
-from evaluate import eval_model, MscEval
+from evaluate import MscEval
 from optimizer import Optimizer
 from loss import OhemCELoss
 
@@ -44,10 +41,10 @@ def train(verbose=True, **kwargs):
     args = parse_args()
     torch.cuda.set_device(args.local_rank)
     dist.init_process_group(
-                backend='nccl',
-                init_method='tcp://127.0.0.1:32168',
-                world_size=torch.cuda.device_count(),
-                rank=args.local_rank
+                backend = 'nccl',
+                init_method = 'tcp://127.0.0.1:32168',
+                world_size = torch.cuda.device_count(),
+                rank = args.local_rank
                 )
     setup_logger(respth)
     logger = logging.getLogger()
@@ -75,19 +72,16 @@ def train(verbose=True, **kwargs):
             device_ids = [args.local_rank, ],
             output_device = args.local_rank
             )
-    #  criteria = nn.CrossEntropyLoss(ignore_index=ignore_idx).cuda()
     criteria = OhemCELoss(thresh=0.7, n_min=batchsize*768*768//16).cuda()
 
     ## optimizer
     momentum = 0.9
     weight_decay = 5e-4
-    #  lr_start = 1.4e-2
-    lr_start = kwargs.get('lr', 1e-2)
+    lr_start = 1e-2
     power = 0.9
     warmup_steps = 1000
     warmup_start_lr = 5e-6
-    #  max_iter = 21
-    max_iter = kwargs.get('max_iter', 41000)
+    max_iter = 41000
     optim = Optimizer(
             net,
             lr_start,
@@ -154,23 +148,6 @@ def train(verbose=True, **kwargs):
             loss_avg = []
             st = ed
 
-        ## eval the model and save checkpoint
-        ## TODO: remove this since it is useless in the exponential scheduler
-        if it>warmup_steps and (it-warmup_steps)%eval_iter==0 and not it==warmup_steps:
-            logger.info('evaluating the model at iter: {}'.format(it))
-            net.eval()
-            mIOU = eval_model(net, lb_ignore=ignore_idx)
-            net.train()
-            logger.info('mIOU is: {}'.format(mIOU))
-            save_pth = osp.join(respth, 'model_iter_{}.pth'.format(it))
-            if hasattr(net, 'module'):
-                state = net.module.state_dict()
-            else:
-                state = net.state_dict()
-            torch.save(state, save_pth)
-            logger.info('checkpoint saved to: {}'.format(save_pth))
-
-
     ## dump the final model and evaluate the result
     if verbose:
         save_pth = osp.join(respth, 'model_final.pth')
@@ -183,26 +160,8 @@ def train(verbose=True, **kwargs):
         net.eval()
         evaluator = MscEval()
         mIOU = evaluator(net)
-        #  mIOU = eval_model(net, lb_ignore=ignore_idx)
         logger.info('mIOU is: {}'.format(mIOU))
-    return mIOU
 
 
 if __name__ == "__main__":
     train()
-    #  import redis
-    #  import json
-    #  import ast
-    #  r = redis.StrictRedis(host='localhost', port=6379, db=0)
-    #  while True:
-    #      name, ret = r.brpop('COIN_BAY_PARA', 0)
-    #      r.lpush('COIN_BAY_PARA', ret)
-    #      if ret is None: continue
-    #      ret = ast.literal_eval(ret.decode('utf-8'))
-    #      if ret['done']: break
-    #      lr, max_iter = ret['lr'], ret['max_iter']
-    #      mIOU = train(lr=lr, max_iter=max_iter, verbose=False)
-    #      if dist.get_rank()==0:
-    #          res = dict(mIOU=mIOU)
-    #          r.lpush('COIN_BAY_RES', res)
-

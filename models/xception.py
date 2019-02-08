@@ -7,9 +7,9 @@ import torch.nn as nn
 import torch.utils.model_zoo as modelzoo
 import torch.nn.functional as F
 import torchvision
-
 import torch.utils.checkpoint as ckpt
 
+from modules import InPlaceABNSync as BatchNorm2d
 
 
 class ConvBNReLU(nn.Module):
@@ -28,13 +28,12 @@ class ConvBNReLU(nn.Module):
                 stride = stride,
                 padding = padding,
                 bias = bias)
-        self.bn = nn.BatchNorm2d(out_chan)
+        self.bn = BatchNorm2d(out_chan)
         self.init_weight()
 
     def forward(self, x):
         x = self.conv(x)
         x = self.bn(x)
-        x = F.relu(x, inplace=True)
         return x
 
     def init_weight(self):
@@ -64,7 +63,7 @@ class SepConvBNReLU(nn.Module):
                 dilation = dilation,
                 groups = in_chan,
                 bias = bias)
-        self.bn = nn.BatchNorm2d(in_chan)
+        self.bn = BatchNorm2d(in_chan)
         self.pairwise = nn.Conv2d(in_chan,
                 out_chan,
                 kernel_size = 1,
@@ -75,7 +74,6 @@ class SepConvBNReLU(nn.Module):
     def forward(self, x):
         x = self.conv(x)
         x = self.bn(x)
-        x = F.relu(x, inplace=True)
         x = self.pairwise(x)
         return x
 
@@ -306,12 +304,9 @@ class Xception71(nn.Module):
 
 
 if __name__ == "__main__":
-    #  blk = Block(64, 128, reps=3, stride=2, dilation=1, start_with_relu=False)
-    #  print(blk)
     net = Xception71()
     net.train()
     net.cuda()
-    #  net = nn.DataParallel(net)
     Loss = nn.CrossEntropyLoss(ignore_index=255)
     import numpy as np
     inten = torch.tensor(np.random.randn(16, 3, 320, 240).astype(np.float32), requires_grad=False).cuda()

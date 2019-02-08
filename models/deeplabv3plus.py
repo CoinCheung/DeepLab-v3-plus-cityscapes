@@ -8,8 +8,7 @@ import torch.utils.model_zoo as modelzoo
 import torch.nn.functional as F
 import torchvision
 
-from resnet import Resnet101
-from darknet import Darknet53
+from .resnet import Resnet101
 from modules import InPlaceABNSync as BatchNorm2d
 
 
