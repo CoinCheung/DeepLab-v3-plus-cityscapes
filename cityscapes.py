@@ -17,11 +17,11 @@ from transform import *
 
 
 class CityScapes(Dataset):
-    def __init__(self, rootpth, cropsize=(320, 240), mode='train', *args, **kwargs):
+    def __init__(self, cfg, mode='train', *args, **kwargs):
         super(CityScapes, self).__init__(*args, **kwargs)
         assert mode in ('train', 'val', 'test')
         self.mode = mode
-        self.n_classes = 19
+        self.cfg = cfg
 
         with open('./cityscapes_info.json', 'r') as fr:
             labels_info = json.load(fr)
@@ -30,7 +30,7 @@ class CityScapes(Dataset):
         ## parse img directory
         self.imgs = {}
         imgnames = []
-        impth = osp.join(rootpth, 'leftImg8bit', mode)
+        impth = osp.join(cfg.datapth, 'leftImg8bit', mode)
         folders = os.listdir(impth)
         for fd in folders:
             fdpth = osp.join(impth, fd)
@@ -43,7 +43,7 @@ class CityScapes(Dataset):
         ## parse gt directory
         self.labels = {}
         gtnames = []
-        gtpth = osp.join(rootpth, 'gtFine', mode)
+        gtpth = osp.join(cfg.datapth, 'gtFine', mode)
         folders = os.listdir(gtpth)
         for fd in folders:
             fdpth = osp.join(gtpth, fd)
@@ -63,13 +63,16 @@ class CityScapes(Dataset):
         ## pre-processing
         self.to_tensor = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+            transforms.Normalize(cfg.mean, cfg.std),
             ])
         self.trans = Compose([
-            ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5),
+            ColorJitter(
+                brightness = cfg.brightness,
+                contrast = cfg.contrast,
+                saturation = cfg.saturation),
             HorizontalFlip(),
-            RandomScale((0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0)),
-            RandomCrop(cropsize)
+            RandomScale(cfg.scales),
+            RandomCrop(cfg.crop_size)
             ])
 
 
@@ -83,9 +86,7 @@ class CityScapes(Dataset):
             im_lb = dict(im = img, lb = label)
             im_lb = self.trans(im_lb)
             img, label = im_lb['im'], im_lb['lb']
-            imgs = self.to_tensor(img)
-        else:
-            imgs = self.to_tensor(img)
+        imgs = self.to_tensor(img)
         label = np.array(label).astype(np.int64)[np.newaxis, :]
         label = self.convert_labels(label)
         return imgs, label
