@@ -127,7 +127,7 @@ def evaluate():
 
     ## model
     logger.info('setup and restore model')
-    net = Deeplab_v3plus(n_classes=cfg.n_classes)
+    net = Deeplab_v3plus(cfg)
     save_pth = osp.join(cfg.respth, 'model_final.pth')
     net.load_state_dict(torch.load(save_pth))
     net.cuda()

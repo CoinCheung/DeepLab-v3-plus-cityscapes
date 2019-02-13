@@ -14,13 +14,14 @@ from modules import InPlaceABNSync as BatchNorm2d
 
 
 class ConvBNReLU(nn.Module):
-    def __init__(self, in_chan, out_chan, ks=3, stride=1, padding=1, *args, **kwargs):
+    def __init__(self, in_chan, out_chan, ks=3, stride=1, padding=1, dilation=1, *args, **kwargs):
         super(ConvBNReLU, self).__init__()
         self.conv = nn.Conv2d(in_chan,
                 out_chan,
                 kernel_size = ks,
                 stride = stride,
                 padding = padding,
+                dilation = dilation,
                 bias = True)
         self.bn = BatchNorm2d(out_chan)
         self.init_weight()
@@ -37,39 +38,14 @@ class ConvBNReLU(nn.Module):
                 if not ly.bias is None: nn.init.constant_(ly.bias, 0)
 
 
-class ASPPConv(nn.Module):
-    def __init__(self, in_chan=2048, out_chan=256, ks=3, dilation=1, *args, **kwargs):
-        super(ASPPConv, self).__init__()
-        self.conv = nn.Conv2d(in_chan,
-                        out_chan,
-                        padding = dilation,
-                        dilation = dilation,
-                        kernel_size = ks,
-                        bias = False)
-        self.bn = BatchNorm2d(out_chan)
-        self.init_weight()
-
-    def forward(self, x):
-        x = self.conv(x)
-        x = self.bn(x)
-        return x
-
-    def init_weight(self):
-        for ly in self.children():
-            if isinstance(ly, nn.Conv2d):
-                nn.init.kaiming_normal_(ly.weight, a=1)
-                if not ly.bias is None: nn.init.constant_(ly.bias, 0)
-
-
-
 class ASPP(nn.Module):
     def __init__(self, in_chan=2048, out_chan=256, with_gp=True, *args, **kwargs):
         super(ASPP, self).__init__()
         self.with_gp = with_gp
-        self.conv1 = ConvBNReLU(in_chan, out_chan, ks=1, padding=0)
-        self.conv2 = ASPPConv(in_chan, out_chan, ks=3, dilation=6)
-        self.conv3 = ASPPConv(in_chan, out_chan, ks=3, dilation=12)
-        self.conv4 = ASPPConv(in_chan, out_chan, ks=3, dilation=18)
+        self.conv1 = ConvBNReLU(in_chan, out_chan, ks=1, dilation=1, padding=0)
+        self.conv2 = ConvBNReLU(in_chan, out_chan, ks=3, dilation=6, padding=6)
+        self.conv3 = ConvBNReLU(in_chan, out_chan, ks=3, dilation=12, padding=12)
+        self.conv4 = ConvBNReLU(in_chan, out_chan, ks=3, dilation=18, padding=18)
         if self.with_gp:
             self.avg = nn.AdaptiveAvgPool2d((1, 1))
             self.conv1x1 = ConvBNReLU(in_chan, out_chan, ks=1)
@@ -132,14 +108,14 @@ class Decoder(nn.Module):
 
 
 class Deeplab_v3plus(nn.Module):
-    def __init__(self, n_classes, *args, **kwargs):
+    def __init__(self, cfg, *args, **kwargs):
         super(Deeplab_v3plus, self).__init__()
         self.backbone = Resnet101(stride=16)
-        self.aspp = ASPP(in_chan=2048, out_chan=256, with_gp=False)
-        self.decoder = Decoder(n_classes, low_chan=256)
+        self.aspp = ASPP(in_chan=2048, out_chan=256, with_gp=cfg.aspp_global_feature)
+        self.decoder = Decoder(cfg.n_classes, low_chan=256)
         #  self.backbone = Darknet53(stride=16)
         #  self.aspp = ASPP(in_chan=1024, out_chan=256, with_gp=False)
-        #  self.decoder = Decoder(n_classes, low_chan=128)
+        #  self.decoder = Decoder(cfg.n_classes, low_chan=128)
 
         self.init_weight()
 

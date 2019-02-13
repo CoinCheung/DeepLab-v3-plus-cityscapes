@@ -7,7 +7,7 @@ I am working with python3.5 and pytorch1.0.0 built from source. Other environmen
 ## Dataset
 The experiment is done with the dataset of [CityScapes](https://www.cityscapes-dataset.com/). You need to register on the website and download the dataset images and annotations. Then you create a `data` directory and then decompress.
 ```
-    $ cd DeepLab-v3-plus
+    $ cd DeepLabv3plus
     $ mkdir -p data
     $ mv /path/to/leftImg8bit_trainvaltest.zip data
     $ mv /path/to/gtFine_trainvaltest.zip data
@@ -18,10 +18,10 @@ The experiment is done with the dataset of [CityScapes](https://www.cityscapes-d
 
 
 ## Train && Eval
-After creating the dataset, you can train on the cityscapes train set and evaluate on the validation set.
+After creating the dataset, you can train on the cityscapes train set and evaluate on the validation set.  
 Train: 
 ```
-    $ cd Deeplab_v3_plus
+    $ cd DeepLabv3plus
     $ CUDA_VISIBLE_DEVICES=0,1 python -m torch.distributed.launch --nproc_per_node=2 train.py
 ```
 This will take around 13 hours on two 1080ti gpus. After training, the model will be evaluated on the val set automatically, and you will see a mIOU of 80.12.
@@ -36,3 +36,7 @@ or if you want to evaluate on multi-gpus, you can also do this:
     $ CUDA_VISIBLE_DEVICES=0,1 python -m torch.distributed.launch --nproc_per_node=2 evaluate.py
 ```
 
+## Configurations
+* If you want to use your own dataset, you may implement you `dataset` file as does with my `cityscapes.py`. 
+
+* As for the hyper-parameters, you may change them in the configuration file `configs/configurations.py`.

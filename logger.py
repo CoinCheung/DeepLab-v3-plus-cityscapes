@@ -17,5 +17,5 @@ def setup_logger(logpth):
     log_level = logging.INFO
     if dist.is_initialized() and dist.get_rank()!=0:
         log_level = logging.WARNING
-    logging.basicConfig(level=log_level, format=FORMAT, stream=sys.stdout)
+    logging.basicConfig(level=log_level, format=FORMAT, filename=logfile)
     logging.root.addHandler(logging.StreamHandler())

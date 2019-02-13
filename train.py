@@ -62,7 +62,7 @@ def train(verbose=True, **kwargs):
                     drop_last = True)
 
     ## model
-    net = Deeplab_v3plus(n_classes=cfg.n_classes)
+    net = Deeplab_v3plus(cfg)
     net.train()
     net.cuda()
     net = nn.parallel.DistributedDataParallel(net,
@@ -120,7 +120,7 @@ def train(verbose=True, **kwargs):
             eta = int((cfg.max_iter - it) * (glob_t_intv / it))
             eta = str(datetime.timedelta(seconds = eta))
             msg = ', '.join([
-                    'it: {it}/{max_it}',
+                    'iter: {it}/{max_it}',
                     'lr: {lr:4f}',
                     'loss: {loss:.4f}',
                     'eta: {eta}',
