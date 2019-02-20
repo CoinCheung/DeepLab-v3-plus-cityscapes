@@ -142,7 +142,7 @@ def train(verbose=True, **kwargs):
         net.cpu()
         save_pth = osp.join(cfg.respth, 'model_final.pth')
         state = net.module.state_dict() if hasattr(net, 'module') else net.state_dict()
-        torch.save(state, save_pth)
+        if dist.get_rank()==0: torch.save(state, save_pth)
         logger.info('training done, model saved to: {}'.format(save_pth))
         logger.info('evaluating the final model')
         net.cuda()
