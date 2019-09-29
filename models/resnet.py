@@ -48,14 +48,14 @@ class Bottleneck(nn.Module):
                 out_chan,
                 kernel_size=1,
                 bias=False)
-        self.bn3 = nn.BatchNorm2d(out_chan)
+        self.bn3 = BatchNorm2d(out_chan, activation='none')
         self.relu = nn.ReLU(inplace=True)
 
         self.downsample = None
         if in_chan != out_chan or stride != 1:
             self.downsample = nn.Sequential(
                 nn.Conv2d(in_chan, out_chan, kernel_size=1, stride=stride, bias=False),
-                nn.BatchNorm2d(out_chan))
+                BatchNorm2d(out_chan, activation='none'))
         self.init_weight()
 
     def forward(self, x):
@@ -143,7 +143,7 @@ class Resnet101(nn.Module):
             if 'bn' in name or 'downsample.1' in name:
                 bn_params.append(param)
             else:
-                bn_params.append(param)
+                non_bn_params.append(param)
         return bn_params, non_bn_params
 
 

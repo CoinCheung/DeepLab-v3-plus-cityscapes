@@ -32,7 +32,7 @@ class Config(object):
         self.msg_iter = 100
         self.ohem_thresh = 0.7
         self.respth = './res'
-        self.port = 32168
+        self.port = 32161
         ## eval control
         self.eval_batchsize = 2
         self.eval_n_workers = 2

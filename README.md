@@ -36,7 +36,12 @@ or if you want to evaluate on multi-gpus, you can also do this:
     $ CUDA_VISIBLE_DEVICES=0,1 python -m torch.distributed.launch --nproc_per_node=2 evaluate.py
 ```
 
+
 ## Configurations
 * If you want to use your own dataset, you may implement you `dataset` file as does with my `cityscapes.py`. 
 
 * As for the hyper-parameters, you may change them in the configuration file `configs/configurations.py`.
+
+
+## Pretrained Model
+If you need model parameters pretrained on cityscapes, you can download the `pth` file [here](https://pan.baidu.com/s/1vbFxwchQybi77drB6divww) with extraction code: `3i4g`.

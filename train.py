@@ -26,6 +26,8 @@ import argparse
 cfg = config_factory['resnet_cityscapes']
 if not osp.exists(cfg.respth): os.makedirs(cfg.respth)
 
+torch.set_num_threads(1)
+
 
 def parse_args():
     parse = argparse.ArgumentParser()

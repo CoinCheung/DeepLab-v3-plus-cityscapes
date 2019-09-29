@@ -19,7 +19,6 @@ import logging
 import time
 import numpy as np
 from tqdm import tqdm
-import numba
 import argparse
 
 
@@ -94,7 +93,6 @@ class MscEval(object):
         mIOU = np.mean(IOUs)
         return mIOU
 
-    @numba.jit
     def compute_hist(self, pred, lb):
         n_classes = self.cfg.n_classes
         keep = np.logical_not(lb==self.cfg.ignore_label)
@@ -129,7 +127,7 @@ def evaluate():
     logger.info('setup and restore model')
     net = Deeplab_v3plus(cfg)
     save_pth = osp.join(cfg.respth, 'model_final.pth')
-    net.load_state_dict(torch.load(save_pth))
+    net.load_state_dict(torch.load(save_pth), strict=False)
     net.cuda()
     net.eval()
     if not args.local_rank == -1:
