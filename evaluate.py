@@ -5,6 +5,7 @@ from logger import *
 from models.deeplabv3plus import Deeplab_v3plus
 from cityscapes import CityScapes
 from configs import config_factory
+from one_hot import convert_to_one_hot
 
 import torch
 import torch.nn as nn
@@ -53,15 +54,16 @@ class MscEval(object):
 
     def __call__(self, net):
         ## evaluate
-        hist_size = (self.cfg.n_classes, self.cfg.n_classes)
-        hist = np.zeros(hist_size, dtype=np.float32)
         if dist.is_initialized() and dist.get_rank()!=0:
             diter = enumerate(self.dl)
         else:
             diter = enumerate(tqdm(self.dl))
+        crosses = torch.zeros(self.cfg.n_classes).cuda()
+        unions = torch.zeros(self.cfg.n_classes).cuda()
         for i, (imgs, label) in diter:
+            label = label.cuda()
             N, _, H, W = label.shape
-            probs = torch.zeros((N, self.cfg.n_classes, H, W))
+            probs = torch.zeros((N, self.cfg.n_classes, H, W)).cuda()
             probs.requires_grad = False
             for sc in self.cfg.eval_scales:
                 new_hw = [int(H*sc), int(W*sc)]
@@ -71,27 +73,31 @@ class MscEval(object):
                     out = net(im)
                     out = F.interpolate(out, (H, W), mode='bilinear', align_corners=True)
                     prob = F.softmax(out, 1)
-                    probs += prob.cpu()
+                    probs += prob
                     if self.cfg.eval_flip:
                         out = net(torch.flip(im, dims=(3,)))
                         out = torch.flip(out, dims=(3,))
                         out = F.interpolate(out, (H, W), mode='bilinear',
                                 align_corners=True)
                         prob = F.softmax(out, 1)
-                        probs += prob.cpu()
+                        probs += prob
                     del out, prob
-            probs = probs.data.numpy()
-            preds = np.argmax(probs, axis=1)
-
-            hist_once = self.compute_hist(preds, label.data.numpy().squeeze(1))
-            hist = hist + hist_once
+            torch.cuda.empty_cache()
+            preds_one_hot = torch.zeros_like(probs).scatter_(
+                1, torch.argmax(probs, dim=1).unsqueeze(1), 1)
+            lb_one_hot = convert_to_one_hot(label.squeeze(1), self.cfg.n_classes,
+                self.cfg.ignore_label)
+            assert lb_one_hot.size() == preds_one_hot.size()
+            cross = torch.sum(preds_one_hot * lb_one_hot, dim=(0, 2, 3))
+            union = torch.sum(preds_one_hot + lb_one_hot, dim=(0, 2, 3)) - cross
+            crosses += cross
+            unions += union
         if self.distributed:
-            hist = torch.tensor(hist).cuda()
-            dist.all_reduce(hist, dist.ReduceOp.SUM)
-            hist = hist.cpu().numpy().astype(np.float32)
-        IOUs = np.diag(hist) / (np.sum(hist, axis=0)+np.sum(hist, axis=1)-np.diag(hist))
-        mIOU = np.mean(IOUs)
-        return mIOU
+            dist.all_reduce(crosses, dist.ReduceOp.SUM)
+            dist.all_reduce(unions, dist.ReduceOp.SUM)
+        ious = crosses / unions
+        miou = torch.mean(ious)
+        return miou.item()
 
     def compute_hist(self, pred, lb):
         n_classes = self.cfg.n_classes
