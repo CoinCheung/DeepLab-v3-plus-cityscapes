@@ -1,5 +1,5 @@
 # DeepLab V3plus
-My implementation of [Deeplab_v3plus](https://arxiv.org/abs/1802.02611). This repository is based on the dataset of cityscapes and the mIOU is 80.12.
+My implementation of [Deeplab_v3plus](https://arxiv.org/abs/1802.02611). This repository is based on the dataset of cityscapes and the mIOU is 70.54.
 
 I am working with python3.5 and pytorch1.0.0 built from source. Other environments are not tested, but you need at least pytorch1.0 since I use torch.distributed to manipulate my gpus. I use two 1080ti to train my model, so you also need two gpus each of which should have at least 9G memory.
 
@@ -24,7 +24,7 @@ Train:
     $ cd DeepLabv3plus
     $ CUDA_VISIBLE_DEVICES=0,1 python -m torch.distributed.launch --nproc_per_node=2 train.py
 ```
-This will take around 13 hours on two 1080ti gpus. After training, the model will be evaluated on the val set automatically, and you will see a mIOU of 80.12.
+This will take around 13 hours on two 1080ti gpus. After training, the model will be evaluated on the val set automatically, and you will see a mIOU of 70.54.
 
 Eval:
 If you want to evaluate a trained model, you can also do this: 
