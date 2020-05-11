@@ -54,16 +54,17 @@ class MscEval(object):
 
     def __call__(self, net):
         ## evaluate
+        n_classes = self.cfg.n_classes
+        ignore_label = self.cfg.ignore_label
         if dist.is_initialized() and dist.get_rank()!=0:
             diter = enumerate(self.dl)
         else:
             diter = enumerate(tqdm(self.dl))
-        crosses = torch.zeros(self.cfg.n_classes).cuda()
-        unions = torch.zeros(self.cfg.n_classes).cuda()
+        hist = torch.zeros(n_classes, n_classes).cuda()
         for i, (imgs, label) in diter:
-            label = label.cuda()
-            N, _, H, W = label.shape
-            probs = torch.zeros((N, self.cfg.n_classes, H, W)).cuda()
+            label = label.squeeze(1).cuda()
+            N, H, W = label.shape
+            probs = torch.zeros((N, n_classes, H, W)).cuda()
             probs.requires_grad = False
             for sc in self.cfg.eval_scales:
                 new_hw = [int(H*sc), int(W*sc)]
@@ -83,29 +84,17 @@ class MscEval(object):
                         probs += prob
                     del out, prob
             torch.cuda.empty_cache()
-            preds_one_hot = torch.zeros_like(probs).scatter_(
-                1, torch.argmax(probs, dim=1).unsqueeze(1), 1)
-            lb_one_hot = convert_to_one_hot(label.squeeze(1), self.cfg.n_classes,
-                self.cfg.ignore_label)
-            assert lb_one_hot.size() == preds_one_hot.size()
-            cross = torch.sum(preds_one_hot * lb_one_hot, dim=(0, 2, 3))
-            union = torch.sum(preds_one_hot + lb_one_hot, dim=(0, 2, 3)) - cross
-            crosses += cross
-            unions += union
-        if self.distributed:
-            dist.all_reduce(crosses, dist.ReduceOp.SUM)
-            dist.all_reduce(unions, dist.ReduceOp.SUM)
-        ious = crosses / unions
-        miou = torch.mean(ious)
+            preds = torch.argmax(probs, dim=1)
+            keep = label != ignore_label
+            hist += torch.bincount(
+                label[keep] * n_classes + preds[keep],
+                minlength=n_classes ** 2
+                ).view(n_classes, n_classes)
+        if dist.is_initialized():
+            dist.all_reduce(hist, dist.ReduceOp.SUM)
+        ious = hist.diag() / (hist.sum(dim=0) + hist.sum(dim=1) - hist.diag())
+        miou = ious.mean()
         return miou.item()
-
-    def compute_hist(self, pred, lb):
-        n_classes = self.cfg.n_classes
-        keep = np.logical_not(lb==self.cfg.ignore_label)
-        merge = pred[keep] * n_classes + lb[keep]
-        hist = np.bincount(merge, minlength=n_classes**2)
-        hist = hist.reshape((n_classes, n_classes))
-        return hist
 
 
 def evaluate():
